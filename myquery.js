@@ -7,6 +7,7 @@ const $ = function (selector = null) {
      (selector === 'document') ? [document] :
      (selector === 'window') ? [window] :
      (selector.nodeType) ? [selector] :
+     (NodeList.prototype.isPrototypeOf(selector)) ? selector :
      document.querySelectorAll(selector)
     this.n=this.nodes[0] 
    }
@@ -23,27 +24,37 @@ const $ = function (selector = null) {
     // setze eine oder mehrere Klassen
     // $('h1').addClass('red , blue')
   addClass = classes => this
-    .each(function (_node) {
+    .each( _node =>
       _node.classList.add(...classes.split(',')
-      .map(_class => _class.trim()))}, this)  
+      .map(_class => _class.trim())), this)  
   
     // entfernt eine oder mehrere Klassen
     // $('h1').removeClass('red , blue')
   removeClass = classes => this
-    .each(function (_node) {
+    .each( _node =>
       _node.classList.remove(...classes.split(',')
-    .map(_class => _class.trim()))}, this)  
+    .map(_class => _class.trim())), this) 
+  
+    // ersetzt eine Klassen
+    // $('h1').replaceClass('red , blue')
+  replaceClass = (class1, class2) => this
+    .each( _node =>
+      _node.classList.replace(class1,class2)) 
+  
   
     // toggelt eine Klasse
-    // $('h1').toggleClass('red )
-  toggleClass = _class => this.
-   each(function (_node) {
-      _node.classList.toggle(_class)}, this) 
+    // $('h1').toggleClass('red')
+  toggleClass = ( _class ) => this
+      .each( _node => 
+      _node.classList.toggle( _class ))
   
     // check ob Element eine bestimmte
     // Klasse besitzt
     // $('p').hasClass('red') -> true or false
   hasClass = _class => this.n.classList.contains(_class)
+  
+  
+  
 
   /*****************/
   /**** Content ****/
@@ -53,27 +64,28 @@ const $ = function (selector = null) {
     // gibt innerHTML zurück wenn (html) nicht übergeben wird
     // $('div').html('<h1>Test</h1>')
     // let dovContent = $('div').html()
-  html = html => {
-    if (html){
-      this.each( _node => _node.innerHTML = html)
-      return this;
-    } else {
-      return this.n.innerHTML
-    }
-  }
+  html = html => html 
+    ? this.each( _node => _node.innerHTML = html)
+    : this.n.innerHTML
   
+    // ergänzt html in angegebenen Nodes
+    // an folgenden Positionen
+    // - beforebegin
+    // - afterbegin
+    // - beforeend (default Einstellung)
+    // - afterend
+    // $( 'div' ).insHtml( "<p>Lorem Ipsum..</p>", "afterbegin" )
+  insHtml = (html, pos="beforeend") =>
+    this.each( _node => _node
+      .insertAdjacentHTML( pos, html ))
+
     // ersetzt innerText in Node oder 
     // gibt innerText zurück wenn (text) nicht übergeben wird
     // $('h1').text('myHeader')
     // let h1Text = $('h1').text()
-  text = text => {
-    if (text){
-      this.each( _node => _node.innerText = text)
-      return this;
-    } else {
-      return this.n.innerText
-    }
-  }
+  text = text => text
+    ? this.each( _node => _node.innerText = text)
+    : this.n.innerText
 
   /***************/
   /**** Nodes ****/
@@ -83,6 +95,12 @@ const $ = function (selector = null) {
     // und gibt dieses zurück
     // let newNode = $().create('h1')
   create = tag => $(document.createElement(tag))
+    
+    // erstellt eine Kopie des übergebenen
+    // Elementes und gibt diese zurück
+    // $('p').clone().addClass('red')
+    // .insertAfter($('p'))
+  clone = () => $(this.n.cloneNode(true))
     
     // erstellt ein neues Element
     // fügt dieses Element an das Ende des 
@@ -99,7 +117,7 @@ const $ = function (selector = null) {
     // übergebenene Elementes ein
     // und gibt dieses zurück
     // dummy=$().create('h2')
-    //  .text('new H2').appendEnd($('body'))
+    // .text('new H2').appendEnd($('body'))
   appendEnd = _node => $(_node.n
     .appendChild(this.n)) 
   
@@ -139,7 +157,11 @@ const $ = function (selector = null) {
       return $(this.n.parentElement)
     }
   }  
-  
+    // gibt Elemente unterhalb des
+    // 1. übergebenen Nodes zurück
+    // $('.container').find('p')
+  find = tag => $(this.n.querySelectorAll(tag))
+                  
     // gibt erstes Element zurück
     // $('p').first().addClass('red')
   first = () => $(this.n)
@@ -254,6 +276,7 @@ const $ = function (selector = null) {
   
   // hier sollte man nicht mehr Eigenschaften 
   // anwenden, der Weg über Klassen ist besser.
+  
   // zeigt angegebene Elemente nicht mehr an
   // $('p').noDisplay()
   noDisplay = () => this.each(_node => _node
@@ -286,6 +309,7 @@ const $ = function (selector = null) {
     var inputInt = t => t.replace(/[^0-9]/g, '')
     $('body').watch()   
     */
+  
   watch = (callBack=null) => {
     
     let handleEvents = evt => handleValues(evt, evt.target)
@@ -339,19 +363,38 @@ const $ = function (selector = null) {
   /*************/
   /**** SVG ****/  
   /*************/
-
-    sCreate = (viewBox) => {
-      let mySVG = document.createElementNS(
-        "http://www.w3.org/2000/svg", "svg")
-      mySVG.setAttributeNS("http://www.w3.org/2000/xmlns/", 
-        "xmlns:xlink", "http://www.w3.org/1999/xlink")
-      mySVG.setAttribute('viewBox', viewBox)
-      return $(mySVG)
-    }
-    
-    sAppend = n => (this.n.appendChild(n.n), this)
+  /* 
+    $().sCreate('0,0,100,100').id('mySVG')
+    .fill('none').stroke('black')
+    .sAppend($().sPath('M 10,10 L 90,10 90,90 10,90 Z').id('myPath'))
+    .sAppend($().sCircle(0,0,7).id('myCircle')
+      .fill('white')
+      .sAppend($().sAnimateMotion()
+        .dur('23s')
+        //.path('M 10,10 L 90,10 90,90 10,90 Z')
+        .repeatCount('indefinite')
+        .sAppend(
+          $().sMpath().href('#myPath')
+        )       
+      )
+    ).insertAfter($('body h1'))
+  */
+  sCreate = (viewBox) => {
+    let mySVG = document.createElementNS(
+      "http://www.w3.org/2000/svg", "svg")
+    mySVG.setAttributeNS("http://www.w3.org/2000/xmlns/", 
+      "xmlns:xlink", "http://www.w3.org/1999/xlink")
+    mySVG.setAttribute('viewBox', viewBox)
+    return $(mySVG)
+  }
+  // fügt angegebenes Element als Child ein
+  // gibt aber das Ursprungselement zurück
+  // $(mySVG).sAppend($()
+  //    .sPath('M 10,10 L 90,10 90,90 10,90 Z')
+  //    .id('myPath'))
+  sAppend = n => (this.n.appendChild(n.n), this)
   
-    svgtext = text => {
+  svgtext = text => {
     if (text){
       this.each( _node => _node.textContent = text)
       return this;
@@ -359,35 +402,95 @@ const $ = function (selector = null) {
       return this.n.textContent
     }
   }
-    
-    sC= el => document.createElementNS("http://www.w3.org/2000/svg", el)
-    
-    sLine = (x1,y1,x2,y2) => 
-      $(this.sC('line')).setAttr('x1',x1).setAttr('y1',y1)
-        .setAttr('x2',x2).setAttr('y2',y2)
-      
-    sCircle = (cx,cy,r) => 
-      $(this.sC('circle')).setAttr('cx',cx).
-        setAttr('cy',cy).setAttr('r',r)
+  // Hilfsfunction  zur Erstellung der SVG Elemente
+  // $(this.sC('line')).x1(x1).y1(y1).x2(x2).y2(y2)  
+  sC= el => document.createElementNS("http://www.w3.org/2000/svg", el)
   
-    sEllipse = (cx,cy,rx, ry) => 
-      $(this.sC('ellipse')).setAttr('cx',cx).
-        setAttr('cy',cy).setAttr('rx',rx)
-        .setAttr('ry',ry)
-      
-    sRect = (x,y,width,height) => 
-      $(this.sC('rect')).setAttr('x',x).setAttr('y',y)
-        .setAttr('width',width).setAttr('height',height)
+  /*** direkte Attribute ***/  
+  //$('svg').id('mySVG')
+  id = id => (this.setAttr('id', id),this)
+  title = title => (this.setAttr('title', title),this)
+  style = style => (this.setAttr('style', style),this)
+  type = type => (this.setAttr('type', type),this)
+  name = name => (this.setAttr('name', name),this)
+  x = x => (this.setAttr('x', x),this)
+  x1 = x1 => (this.setAttr('x1', x1),this)
+  x2 = x2 => (this.setAttr('x2', x2),this)
+  y = y => (this.setAttr('y', y),this)
+  y1 = y1 => (this.setAttr('y1', y1),this)
+  y2 = y2 => (this.setAttr('y2', y2),this)
+  cx = cx => (this.setAttr('cx', cx),this)
+  cy = cy => (this.setAttr('cy', cy),this)
+  r = r => (this.setAttr('r', r),this)
+  rx = rx => (this.setAttr('rx', rx),this)
+  ry = ry => (this.setAttr('ry', ry),this)
+  width = width => (this.setAttr('width', width),this)
+  height = height => (this.setAttr('height', height),this)
+  points = points => (this.setAttr('points', points),this)
+  d = d => (this.setAttr('d', d),this)
+  fill = fill => (this.setAttr('fill', fill),this)
+  stroke = stroke => (this.setAttr('stroke', stroke),this)
+  strokeWidth = strokeWidth => (this.setAttr('stroke-width', strokeWidth),this)
+  dur = dur => (this.setAttr('dur', dur),this)
+  path = path => (this.setAttr('path', path),this)
+  repeatCount = repeatCount => (this.setAttr('repeatCount', repeatCount),this)
+  href = href => (this.setAttr('href', href),this)
+  textAnchor = textAnchor => (this.setAttr('text-anchor', textAnchor),this)
+  dominantBaseline = dominantBaseline => (this.setAttr('dominant-baseline', dominantBaseline),this)
+  /**** Elemente ****/
+  // erstellt neues SVG Element und gibt dieses zurück
+  //($(mySVG).sAppend($().sPath('M 10,10 L 90,10 90,90 10,90 Z').id('myPath'))
+  sLine = (x1,y1,x2,y2) => $(this.sC('line')).x1(x1).y1(y1).x2(x2).y2(y2)  
+  sCircle = (cx,cy,r) => $(this.sC('circle')).cx(cx).cy(cy).r(r)
+  sEllipse = (cx,cy,rx, ry) => $(this.sC('ellipse')).cx(cx).cy(cy).rx(rx).ry(ry)
+  sRect = (x,y,width,height) => $(this.sC('rect')).x(x).y(y).width(width).height(height)
+  sPolyline = points => $(this.sC('polyline')).points(points)
+  sPolygon = points => $(this.sC('polygon')).points(points)
+  sPath = path => $(this.sC('path')).d(path)
+  sText = (x,y,text) => $(this.sC('text')).x(x).y(y).svgtext(text)
   
-    sPolyline = points => $(this.sC('polyline')).setAttr('points',points)
-    
-    sPolygon = points => $(this.sC('polygon')).setAttr('points',points)
-    
-    sPath = path => $(this.sC('path')).setAttr('d',path)
-  
-    sText = (x,y,text) => $(this.sC('text')).setAttr('x',x)
-      .setAttr('y',y).svgtext(text)
+  /*** Animationen ***/
+  sAnimateMotion = () => $(this.sC('animateMotion'))
+  sMpath = () => $(this.sC('mpath'))
+  /********* create Icon ************/
+  // erstellt ein Icon in der Größe 32 x 32 px
+  // übergeben wird der Pfad d ('M 10,10 ....')
+  //const iconEnvelope = $().sIcon('M 3 8 L 3 26 L 29 26 L 29 8 Z M 7.3125 10 L 24.6875 10 L 16 15.78125 Z M 5 10.875 L 15.4375 17.84375 L 16 18.1875 L 16.5625 17.84375 L 27 10.875 L 27 24 L 5 24 Z')
+
+  sIcon = (path) => this.sCreate('0,0,32,32').sAppend($().sPath(path)).addClass('my-icon')
+  sIconAction = (action) => 
+      this.setData('action', action)
+        .find('path').setData('action', action).parent()
 
  }
  return selector = new selection(selector)
 };
+
+/******************/
+/*** some Tools ***/
+/******************/
+
+const csvToTable = async (tableElement) => {
+  try {        
+      const req = await fetch(tableElement.dataset.csv, {
+        method: 'get',
+        headers: {
+          'content-type': 'text/csv;charset=UTF-8'}
+      });
+      if (req.status === 200) {
+        const csv = await req.text();
+        let myTableArray = csv.split('\n')
+        let myTable=`<thead><tr><th>
+         ${myTableArray[0].replaceAll(';',
+        '<th>')}</tr></thead><tbody>`
+        myTableArray.shift()
+        myTableArray.forEach((aktRow) => {
+        myTable+=`<tr><td>${aktRow.replaceAll(
+        ';','<td>')}</tr></tbody>`})
+        tableElement.
+         insertAdjacentHTML('afterBegin', myTable)
+      } else {
+        console.log(`Error code ${req.status}`);
+      }
+  } catch (err) {console.log(err)}
+} 
