@@ -1007,3 +1007,6 @@ const $ = function ( selector = null ) {
 
 
 ### Zusammenfassung
+
+
+**wir noch erweitert... ist in Arbeit**
